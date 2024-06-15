@@ -19,12 +19,33 @@ def read_tickets(by_name=False):
             writer.writeheader()
     return tickets
 
+# Fungsi untuk membaca antrean dari file CSV
+def read_queue():
+    queue = []
+    try:
+        with open('antrean.csv', mode='r', newline='') as file:
+            reader = csv.DictReader(file)
+            queue = list(reader)
+    except FileNotFoundError:
+        with open('antrean.csv', mode='w', newline='') as file:
+            fieldnames = ['nama', 'usia', 'id_penerbangan', 'jumlah_tiket']
+            writer = csv.DictWriter(file, fieldnames=fieldnames)
+            writer.writeheader()
+    return queue
+
 # Fungsi untuk menambahkan data baru ke file CSV
 def add_ticket(data):
     fieldnames = ['id', 'destinasi', 'maskapai', 'kapasitas', 'tanggal', 'waktu']
     next_id = get_next_ticket_id()
     data['id'] = str(next_id)
     with open('tiket.csv', mode='a', newline='') as file:
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        writer.writerow(data)
+
+# Fungsi untuk menambahkan data baru ke antrean
+def add_to_queue(data):
+    fieldnames = ['nama', 'usia', 'id_penerbangan', 'jumlah_tiket']
+    with open('antrean.csv', mode='a', newline='') as file:
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writerow(data)
 
@@ -43,6 +64,13 @@ def delete_ticket(id):
     tickets = [ticket for ticket in tickets if ticket['id'] != str(id)]
     _save_all_tickets(tickets)
 
+# Fungsi untuk menghapus antrean dari file CSV
+def delete_queue(index):
+    queue = read_queue()
+    if 0 <= index < len(queue):
+        del queue[index]
+    _save_all_queue(queue)
+
 # Fungsi internal untuk menyimpan semua data tiket ke file CSV
 def _save_all_tickets(tickets):
     fieldnames = ['id', 'destinasi', 'maskapai', 'kapasitas', 'tanggal', 'waktu']
@@ -50,6 +78,14 @@ def _save_all_tickets(tickets):
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(tickets)
+
+# Fungsi internal untuk menyimpan semua antrean ke file CSV
+def _save_all_queue(queue):
+    fieldnames = ['nama', 'usia', 'id_penerbangan', 'jumlah_tiket']
+    with open('antrean.csv', mode='w', newline='') as file:
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(queue)
 
 # Fungsi untuk mendapatkan id berikutnya
 def get_next_ticket_id():
@@ -77,8 +113,8 @@ class TicketManager:
     def __init__(self, root):
         self.root = root
         self.root.title("Manajemen Tiket")
-        self.root.geometry("800x600")
-        self.root.configure(bg='darkblue')
+        self.root.geometry("700x650")
+        self.root.configure(bg='lightblue')
         self.root.resizable(False, False)
 
         self.create_widgets()
@@ -132,15 +168,35 @@ class TicketManager:
         self.sort_by_destinasi_button = tk.Button(self.frame, text="Urutkan berdasarkan Destinasi", command=self.sort_tickets_by_destinasi)
         self.sort_by_destinasi_button.grid(row=7, column=0, columnspan=3, padx=button_padx, pady=button_pady, sticky="ew")
 
-        self.listbox = tk.Listbox(self.frame, width=80, height=15)
+        self.listbox = tk.Listbox(self.frame, width=80, height=10)
         self.listbox.grid(row=8, column=0, columnspan=3, pady=10)
         self.listbox.bind("<<ListboxSelect>>", self.on_listbox_select)
+
+        self.queue_label = tk.Label(self.frame, text="Antrean Pemesanan:")
+        self.queue_label.grid(row=9, column=0, columnspan=3)
+
+        self.queue_listbox = tk.Listbox(self.frame, width=80, height=5)
+        self.queue_listbox.grid(row=10, column=0, columnspan=3, pady=10)
+        self.queue_listbox.bind("<<ListboxSelect>>", self.on_queue_listbox_select)
+
+        self.process_queue_button = tk.Button(self.frame, text="Proses Antrean", command=self.process_queue)
+        self.process_queue_button.grid(row=11, column=0, padx=button_padx, pady=button_pady, sticky="ew")
+
+        self.delete_queue_button = tk.Button(self.frame, text="Hapus Antrean", command=self.delete_queue_data)
+        self.delete_queue_button.grid(row=11, column=1, padx=button_padx, pady=button_pady, sticky="ew")
 
     def refresh_list(self):
         self.listbox.delete(0, tk.END)
         tickets = read_tickets()
         for ticket in tickets:
             self.listbox.insert(tk.END, f"{ticket['id']}: {ticket['destinasi']} - {ticket['maskapai']} - {ticket['kapasitas']} - {ticket['tanggal']} - {ticket['waktu']}")
+        self.refresh_queue()
+
+    def refresh_queue(self):
+        self.queue_listbox.delete(0, tk.END)
+        queue = read_queue()
+        for idx, item in enumerate(queue):
+            self.queue_listbox.insert(tk.END, f"{idx+1}. {item['nama']} - {item['usia']} - {item['id_penerbangan']} - {item['jumlah_tiket']}")
 
     def on_listbox_select(self, event):
         if not self.listbox.curselection():
@@ -160,6 +216,9 @@ class TicketManager:
             self.tanggal_entry.insert(0, ticket['tanggal'])
             self.waktu_entry.delete(0, tk.END)
             self.waktu_entry.insert(0, ticket['waktu'])
+
+    def on_queue_listbox_select(self, event):
+        pass
 
     def add_ticket(self):
         destinasi = self.destinasi_entry.get()
@@ -222,6 +281,38 @@ class TicketManager:
         for ticket in tickets:
             self.listbox.insert(tk.END, f"{ticket['id']}: {ticket['destinasi']} - {ticket['maskapai']} - {ticket['kapasitas']} - {ticket['tanggal']} - {ticket['waktu']}")
 
+    def process_queue(self):
+        selected = self.queue_listbox.curselection()
+        if not selected:
+            messagebox.showwarning("Peringatan", "Pilih antrean yang akan diproses")
+            return
+        index = selected[0]
+        queue = read_queue()
+        if 0 <= index < len(queue):
+            item = queue[index]
+            ticket_id = item['id_penerbangan']
+            ticket = binary_search(read_tickets(), int(ticket_id))
+            if ticket:
+                kapasitas_baru = int(ticket['kapasitas']) - int(item['jumlah_tiket'])
+                if kapasitas_baru >= 0:
+                    update_ticket(ticket_id, {'kapasitas': str(kapasitas_baru)})
+                    delete_queue(index)
+                    self.refresh_list()
+                    messagebox.showinfo("Sukses", "Antrean telah diproses")
+                else:
+                    messagebox.showwarning("Gagal", "Kapasitas tiket tidak mencukupi")
+            else:
+                messagebox.showwarning("Gagal", "Tiket tidak ditemukan")
+
+    def delete_queue_data(self):
+        selected = self.queue_listbox.curselection()
+        if not selected:
+            messagebox.showwarning("Peringatan", "Pilih antrean yang akan dihapus")
+            return
+        index = selected[0]
+        delete_queue(index)
+        self.refresh_queue()
+
     def clear_entries(self):
         self.destinasi_entry.delete(0, tk.END)
         self.maskapai_entry.delete(0, tk.END)
@@ -233,5 +324,3 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = TicketManager(root)
     root.mainloop()
-
-           
