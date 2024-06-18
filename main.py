@@ -2,16 +2,17 @@ import csv
 import tkinter as tk
 from tkinter import messagebox
 
-# Fungsi untuk membaca data dari file CSV dan mengembalikan dalam list yang diurutkan berdasarkan ID
-def read_tickets(by_name=False):
+#Membaca list tiket
+def read_tickets(by_capacity=False):
     tickets = []
     try:
         with open('tiket.csv', mode='r', newline='') as file:
             reader = csv.DictReader(file)
-            if by_name:
-                tickets = sorted(reader, key=lambda x: x['destinasi'])
+            tickets = list(reader)
+            if by_capacity:
+                tickets = merge_sort(tickets, key=lambda x: int(x['kapasitas']))
             else:
-                tickets = sorted(reader, key=lambda x: int(x['id']))
+                tickets = merge_sort(tickets, key=lambda x: int(x['id']))
     except FileNotFoundError:
         with open('tiket.csv', mode='w', newline='') as file:
             fieldnames = ['id', 'destinasi', 'maskapai', 'kapasitas', 'tanggal', 'waktu']
@@ -19,7 +20,7 @@ def read_tickets(by_name=False):
             writer.writeheader()
     return tickets
 
-# Fungsi untuk membaca antrean dari file CSV
+# membaca antrean
 def read_queue():
     queue = []
     try:
@@ -33,7 +34,7 @@ def read_queue():
             writer.writeheader()
     return queue
 
-# Fungsi untuk menambahkan data baru ke file CSV
+#menambahkan jadwal baru
 def add_ticket(data):
     fieldnames = ['id', 'destinasi', 'maskapai', 'kapasitas', 'tanggal', 'waktu']
     next_id = get_next_ticket_id()
@@ -42,14 +43,7 @@ def add_ticket(data):
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writerow(data)
 
-# Fungsi untuk menambahkan data baru ke antrean
-def add_to_queue(data):
-    fieldnames = ['nama', 'usia', 'id_penerbangan', 'jumlah_tiket']
-    with open('antrean.csv', mode='a', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=fieldnames)
-        writer.writerow(data)
-
-# Fungsi untuk mengupdate data dalam file CSV
+# Update peneerbangan
 def update_ticket(id, new_data):
     tickets = read_tickets()
     for ticket in tickets:
@@ -58,20 +52,20 @@ def update_ticket(id, new_data):
             break
     _save_all_tickets(tickets)
 
-# Fungsi untuk menghapus data dari file CSV
+#Untuk menghapus jadwal penerbangan
 def delete_ticket(id):
     tickets = read_tickets()
     tickets = [ticket for ticket in tickets if ticket['id'] != str(id)]
     _save_all_tickets(tickets)
 
-# Fungsi untuk menghapus antrean dari file CSV
+# Fungsi untuk menghapus antrean
 def delete_queue(index):
     queue = read_queue()
     if 0 <= index < len(queue):
         del queue[index]
     _save_all_queue(queue)
 
-# Fungsi internal untuk menyimpan semua data tiket ke file CSV
+#untuk menyimpan data penerbangan
 def _save_all_tickets(tickets):
     fieldnames = ['id', 'destinasi', 'maskapai', 'kapasitas', 'tanggal', 'waktu']
     with open('tiket.csv', mode='w', newline='') as file:
@@ -79,7 +73,7 @@ def _save_all_tickets(tickets):
         writer.writeheader()
         writer.writerows(tickets)
 
-# Fungsi internal untuk menyimpan semua antrean ke file CSV
+#untuk menyimpan antrean
 def _save_all_queue(queue):
     fieldnames = ['nama', 'usia', 'id_penerbangan', 'jumlah_tiket']
     with open('antrean.csv', mode='w', newline='') as file:
@@ -95,7 +89,7 @@ def get_next_ticket_id():
     else:
         return max(int(ticket['id']) for ticket in tickets) + 1
 
-# Fungsi binary search untuk mencari tiket berdasarkan ID
+#Binary search
 def binary_search(tickets, id_to_find):
     low = 0
     high = len(tickets) - 1
@@ -108,6 +102,29 @@ def binary_search(tickets, id_to_find):
         else:
             high = mid - 1
     return None
+
+#Merge Sort
+def merge_sort(data, key=lambda x: x):
+    if len(data) <= 1:
+        return data
+    mid = len(data) // 2
+    left = merge_sort(data[:mid], key=key)
+    right = merge_sort(data[mid:], key=key)
+    return merge(left, right, key=key)
+
+def merge(left, right, key=lambda x: x):
+    result = []
+    i = j = 0
+    while i < len(left) and j < len(right):
+        if key(left[i]) <= key(right[j]):
+            result.append(left[i])
+            i += 1
+        else:
+            result.append(right[j])
+            j += 1
+    result.extend(left[i:])
+    result.extend(right[j:])
+    return result
 
 class TicketManager:
     def __init__(self, root):
@@ -149,7 +166,6 @@ class TicketManager:
         self.waktu_entry = tk.Entry(self.frame)
         self.waktu_entry.grid(row=4, column=1)
 
-        # Menambahkan padding di antara tombol
         button_padx = 10
         button_pady = 10
 
@@ -165,8 +181,8 @@ class TicketManager:
         self.sort_by_id_button = tk.Button(self.frame, text="Urutkan berdasarkan ID", command=self.sort_tickets_by_id)
         self.sort_by_id_button.grid(row=6, column=0, columnspan=3, padx=button_padx, pady=button_pady, sticky="ew")
 
-        self.sort_by_destinasi_button = tk.Button(self.frame, text="Urutkan berdasarkan Destinasi", command=self.sort_tickets_by_destinasi)
-        self.sort_by_destinasi_button.grid(row=7, column=0, columnspan=3, padx=button_padx, pady=button_pady, sticky="ew")
+        self.sort_by_kapasitas_button = tk.Button(self.frame, text="Urutkan berdasarkan Kapasitas", command=self.sort_tickets_by_kapasitas)
+        self.sort_by_kapasitas_button.grid(row=7, column=0, columnspan=3, padx=button_padx, pady=button_pady, sticky="ew")
 
         self.listbox = tk.Listbox(self.frame, width=80, height=10)
         self.listbox.grid(row=8, column=0, columnspan=3, pady=10)
@@ -271,13 +287,13 @@ class TicketManager:
 
     def sort_tickets_by_id(self):
         self.listbox.delete(0, tk.END)
-        tickets = read_tickets()
-        for ticket in sorted(tickets, key=lambda x: int(x['id'])):
+        tickets = merge_sort(read_tickets(), key=lambda x: int(x['id']))
+        for ticket in tickets:
             self.listbox.insert(tk.END, f"{ticket['id']}: {ticket['destinasi']} - {ticket['maskapai']} - {ticket['kapasitas']} - {ticket['tanggal']} - {ticket['waktu']}")
 
-    def sort_tickets_by_destinasi(self):
+    def sort_tickets_by_kapasitas(self):
         self.listbox.delete(0, tk.END)
-        tickets = read_tickets(by_name=True)
+        tickets = merge_sort(read_tickets(by_capacity=True), key=lambda x: int(x['kapasitas']))
         for ticket in tickets:
             self.listbox.insert(tk.END, f"{ticket['id']}: {ticket['destinasi']} - {ticket['maskapai']} - {ticket['kapasitas']} - {ticket['tanggal']} - {ticket['waktu']}")
 
