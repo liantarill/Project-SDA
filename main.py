@@ -2,7 +2,7 @@ import csv
 import tkinter as tk
 from tkinter import messagebox
 
-#Membaca list tiket
+# Membaca list tiket
 def read_tickets(by_capacity=False):
     tickets = []
     try:
@@ -20,7 +20,7 @@ def read_tickets(by_capacity=False):
             writer.writeheader()
     return tickets
 
-# membaca antrean
+# Membaca antrean
 def read_queue():
     queue = []
     try:
@@ -34,7 +34,7 @@ def read_queue():
             writer.writeheader()
     return queue
 
-#menambahkan jadwal baru
+# Menambahkan jadwal baru
 def add_ticket(data):
     fieldnames = ['id', 'destinasi', 'maskapai', 'kapasitas', 'tanggal', 'waktu']
     next_id = get_next_ticket_id()
@@ -43,7 +43,7 @@ def add_ticket(data):
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writerow(data)
 
-# Update peneerbangan
+# Update penerbangan
 def update_ticket(id, new_data):
     tickets = read_tickets()
     for ticket in tickets:
@@ -52,7 +52,7 @@ def update_ticket(id, new_data):
             break
     _save_all_tickets(tickets)
 
-#Untuk menghapus jadwal penerbangan
+# Untuk menghapus jadwal penerbangan
 def delete_ticket(id):
     tickets = read_tickets()
     tickets = [ticket for ticket in tickets if ticket['id'] != str(id)]
@@ -65,7 +65,7 @@ def delete_queue(index):
         del queue[index]
     _save_all_queue(queue)
 
-#untuk menyimpan data penerbangan
+# Untuk menyimpan data penerbangan
 def _save_all_tickets(tickets):
     fieldnames = ['id', 'destinasi', 'maskapai', 'kapasitas', 'tanggal', 'waktu']
     with open('tiket.csv', mode='w', newline='') as file:
@@ -73,7 +73,7 @@ def _save_all_tickets(tickets):
         writer.writeheader()
         writer.writerows(tickets)
 
-#untuk menyimpan antrean
+# Untuk menyimpan antrean
 def _save_all_queue(queue):
     fieldnames = ['nama', 'usia', 'id_penerbangan', 'jumlah_tiket']
     with open('antrean.csv', mode='w', newline='') as file:
@@ -89,7 +89,7 @@ def get_next_ticket_id():
     else:
         return max(int(ticket['id']) for ticket in tickets) + 1
 
-#Binary search
+# Binary search
 def binary_search(tickets, id_to_find):
     low = 0
     high = len(tickets) - 1
@@ -103,7 +103,7 @@ def binary_search(tickets, id_to_find):
             high = mid - 1
     return None
 
-#Merge Sort
+# Merge Sort
 def merge_sort(data, key=lambda x: x):
     if len(data) <= 1:
         return data
@@ -130,7 +130,7 @@ class TicketManager:
     def __init__(self, root):
         self.root = root
         self.root.title("Manajemen Tiket")
-        self.root.geometry("700x650")
+        self.root.geometry("700x700")
         self.root.configure(bg='lightblue')
         self.root.resizable(False, False)
 
@@ -200,6 +200,15 @@ class TicketManager:
 
         self.delete_queue_button = tk.Button(self.frame, text="Hapus Antrean", command=self.delete_queue_data)
         self.delete_queue_button.grid(row=11, column=1, padx=button_padx, pady=button_pady, sticky="ew")
+
+        # Add search entry and button for queue
+        self.search_label = tk.Label(self.frame, text="Cari Nama:")
+        self.search_label.grid(row=12, column=0)
+        self.search_entry = tk.Entry(self.frame)
+        self.search_entry.grid(row=12, column=1)
+
+        self.search_button = tk.Button(self.frame, text="Cari", command=self.search_queue_by_name)
+        self.search_button.grid(row=12, column=2, padx=button_padx, pady=button_pady, sticky="ew")
 
     def refresh_list(self):
         self.listbox.delete(0, tk.END)
@@ -328,6 +337,23 @@ class TicketManager:
         index = selected[0]
         delete_queue(index)
         self.refresh_queue()
+
+    def search_queue_by_name(self):
+        search_name = self.search_entry.get()
+        if not search_name:
+            messagebox.showwarning("Peringatan", "Masukkan nama untuk mencari")
+            return
+
+        queue = read_queue()
+        search_results = [f"{idx+1}. {item['nama']} - {item['usia']} - {item['id_penerbangan']} - {item['jumlah_tiket']}"
+                          for idx, item in enumerate(queue) if search_name.lower() in item['nama'].lower()]
+
+        self.queue_listbox.delete(0, tk.END)
+        if search_results:
+            for result in search_results:
+                self.queue_listbox.insert(tk.END, result)
+        else:
+            self.queue_listbox.insert(tk.END, "Tidak ditemukan antrean dengan nama tersebut")
 
     def clear_entries(self):
         self.destinasi_entry.delete(0, tk.END)
